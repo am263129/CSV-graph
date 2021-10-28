@@ -24,4 +24,16 @@ public class DataItem {
     public float getEndTime() {
         return endTime;
     }
+
+    public void setEndTime(float endTime) {
+        this.endTime = endTime;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
+    public void setStartTime(float startTime) {
+        this.startTime = startTime;
+    }
 }

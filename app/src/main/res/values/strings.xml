@@ -21,7 +21,13 @@
     <string name="label_acc">加速度</string>
     <string name="label_gyr">ジャイロ</string>
     <string name="label_geo">地磁気</string>
-    <string name="msg_nocsvfile">csvファイルが選択されていません</string>
+    <string name="msg_noCsvFile">csvファイルが選択されていません</string>
+    <string name="msg_needOne">少なくとも1つを選択する必要があります</string>
+    <string name="msg_finishApp">アプリを終了してもよろしいですか？</string>
+    <string name="msg_emptyCsv">空のcsvファイルが選択されました</string>
+    <string name="ok">わかった</string>
+    <string name="cancel">キャンセル</string>
+    <string name="finish">終了</string>
     <array name="actions">
         <item>食べる</item>
         <item>歩く</item>
