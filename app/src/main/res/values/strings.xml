@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">PetVoice Viewer</string>
+    <string name="open_video">動画ファイル名</string>
+    <string name="open_csv">CSVファイル名</string>
+
+    <string name="start_point">始点</string>
+    <string name="end_point">終点</string>
+    <string name="add_point">追加</string>
+    <string name="delete_point">削除</string>
+    <string name="start_time">始点</string>
+    <string name="end_time">終点</string>
+    <string name="switch_graphic">加速度</string>
+    <string name="label">ラベル</string>
+
+
+    <string name="permission_granted">ストレージ権限が付与されます</string>
+    <string name="permission_denied">ストレージ許可が拒否されました</string>
+    <string name="loading_video">ビデオの読み込み</string>
+    <string name="invalid_filename">無効なファイル名</string>
+    <string name="invalid_filetype">無効なファイルタイプ</string>
+    <string name="label_acc">加速度</string>
+    <string name="label_gyr">ジャイロ</string>
+    <string name="label_geo">地磁気</string>
+    <string name="msg_nocsvfile">csvファイルが選択されていません</string>
+    <array name="actions">
+        <item>食べる</item>
+        <item>歩く</item>
+        <item>飲む</item>
+        <item>歩く</item>
+    </array>
+</resources>
