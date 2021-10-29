@@ -52,6 +52,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -479,11 +480,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.btn_point_delete:
                 System.out.println(DataAdapter.selectedItems);
-                for (int i = 0; i < dataArray.size(); i++) {
+                for (int i = dataArray.size(); i >=0 ; i--) {
                     System.out.println(DataAdapter.selectedItems.get(i, false));
                     if (DataAdapter.selectedItems.get(i, false)) {
                         dataArray.remove(i);
-                        i=i-1;
                     }
                 }
                 DataAdapter.selectedItems.clear();
