@@ -318,12 +318,72 @@
             app:layout_constraintTop_toBottomOf="@+id/action_record_area"
             app:layout_constraintBottom_toTopOf="@+id/axis_area">
 
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/pending_data_area"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+                <TextView
+                    android:textSize="12dp"
+                    android:id="@+id/pending_label"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintWidth_percent="0.33"
+                    android:textAlignment="center"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_border_pending"
+                    android:text="@string/label" />
+                <TextView
+                    android:textSize="12dp"
+                    android:id="@+id/pending_label_start"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/pending_label"
+                    app:layout_constraintEnd_toStartOf="@+id/pending_label_end"
+                    android:textAlignment="center"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_border_pending"
+                    android:text="@string/start_point" />
+                <TextView
+                    android:textSize="12dp"
+                    android:id="@+id/pending_label_end"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintWidth_percent="0.33"
+                    android:textAlignment="center"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_border_pending"
+                    android:text="@string/end_point" />
+
+                <ImageView
+                    android:id="@+id/ic_up"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:background="@drawable/ic_up"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    android:rotation="180"
+                    app:layout_constraintTop_toBottomOf="@+id/pending_label" />
+                <TextView
+                    app:layout_constraintTop_toBottomOf="@+id/ic_up"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_pending"
+                    android:visibility="gone"/>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
             <TextView
                 android:textSize="12dp"
                 android:id="@+id/label_label"
-                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/pending_data_area"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintWidth_percent="0.33"
+                android:layout_marginTop="10dp"
                 android:textAlignment="center"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -332,7 +392,7 @@
             <TextView
                 android:textSize="12dp"
                 android:id="@+id/label_start"
-                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/label_label"
                 app:layout_constraintStart_toEndOf="@+id/label_label"
                 app:layout_constraintEnd_toStartOf="@+id/label_end"
                 android:textAlignment="center"
@@ -343,7 +403,7 @@
             <TextView
                 android:textSize="12dp"
                 android:id="@+id/label_end"
-                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/label_label"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintWidth_percent="0.33"
                 android:textAlignment="center"
@@ -381,6 +441,7 @@
                 tools:ignore="TouchTargetSizeCheck">
 
                 <TextView
+                    android:id="@+id/label_type"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/switch_graphic"

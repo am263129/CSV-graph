@@ -1,16 +1,9 @@
 package com.example.bluetooth.petvoiceviewer;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothManager;
-import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.widget.Toast;
@@ -28,7 +21,6 @@ import java.util.List;
 
 public class SplashActivity extends AppCompatActivity {
     Handler startHandler = new Handler();
-    private final int ALLPERMISSION = 9003;
     private final String TAG = "Splash";
     private final ActivityPermissionRequest permissionRequest = new ActivityPermissionRequest.Builder(this)
             .withPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -54,7 +46,6 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
-
     }
 
     @Override

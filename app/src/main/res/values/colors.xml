@@ -11,4 +11,6 @@
     <color name="blue">#2196F3</color>
     <color name="green">#4CAF50</color>
     <color name="orange">#F44336</color>
+    <color name="selected_color">#8175ECFB</color>
+    <color name="pressed_color">#2F5CB6FD</color>
 </resources>

@@ -28,6 +28,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
@@ -35,8 +36,6 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.anggrayudi.storage.SimpleStorageHelper;
-import com.anggrayudi.storage.file.DocumentFileUtils;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.XAxis;
@@ -52,7 +51,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -61,13 +63,13 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private ConstraintLayout btnPointStart, btnPointEnd, btnPointAdd, btnPointDelete, axisX, axisY, axisZ;
+    private ConstraintLayout btnPointStart, btnPointEnd, btnPointAdd, btnPointDelete, pendingDataArea, axisX, axisY, axisZ;
     private Spinner actionSelector;
     private SurfaceView videoView;
     private SurfaceHolder holder;
     private ActivityResultLauncher<Intent> someActivityResultLauncher;
     private ProgressBar loadingProgress;
-    private TextView statusLabel;
+    private TextView statusLabel, pendingLabel, pendingStart, pendingEnd, labelType;
     private ImageView fileStatus;
     private RecyclerView dataList;
     private DataAdapter dataAdapter;
@@ -76,17 +78,15 @@ public class MainActivity extends AppCompatActivity {
     private MediaPlayer player;
     private LineChart chart;
     private SeekBar seekController;
-    private Handler playHandler;
+    private Handler playHandler,writeHandler;
+    private Thread writeThread;
     private BufferedWriter csvWriter = null;
     private int videoDuration;
     private int dataType = 0;
     private Uri csvUri = null, videoUri = null;
     private List<String[]> csvDump;
     private final String TAG = "MainActivity";
-    private final int REQUEST_CODE_PICK_FOLDER = 9001;
     private boolean videoPrepared = false;
-    private final SimpleStorageHelper storageHelper = new SimpleStorageHelper(this);
-
 
 
     @Override
@@ -96,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
         initLauncher();
         initChart();
         initVideoTracker();
-        setupSimpleStorage(savedInstanceState);
     }
 
     /********************  init Functions  *******************/
@@ -112,6 +111,11 @@ public class MainActivity extends AppCompatActivity {
         btnPointAdd = findViewById(R.id.btn_point_add);
         btnPointDelete = findViewById(R.id.btn_point_delete);
         actionSelector = findViewById(R.id.action_selector);
+        pendingDataArea = findViewById(R.id.pending_data_area);
+        pendingLabel = findViewById(R.id.pending_label);
+        pendingStart = findViewById(R.id.pending_label_start);
+        pendingEnd = findViewById(R.id.pending_label_end);
+        labelType = findViewById(R.id.label_type);
         axisX = findViewById(R.id.btn_x);
         axisY = findViewById(R.id.btn_y);
         axisZ = findViewById(R.id.btn_z);
@@ -159,9 +163,13 @@ public class MainActivity extends AppCompatActivity {
                                     statusLabel.setVisibility(View.INVISIBLE);
                                     loadingProgress.setVisibility(View.VISIBLE);
                                     videoUri = data.getData();
+                                    if(player.isPlaying()){
+                                        player.stop();
+                                    }
                                     initVideo(data.getData());
                                 } else if (fileType.equals("csv")) {
                                     csvUri = data.getData();
+                                    csvDump = null;//so that it will read data array.
                                     initData();
                                 } else {
                                     showToast(R.string.invalid_filetype);
@@ -179,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
      */
     public void initChart() {
         chart = findViewById(R.id.chart_view);
-        chart.getDescription().setEnabled(true);
+        chart.getDescription().setEnabled(false );
         chart.setTouchEnabled(true);
         chart.setDragEnabled(true);
         chart.setScaleEnabled(true);
@@ -210,6 +218,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * init Video player with selected mp4 file
+     *
      * @param uri recorded video file uri
      */
     public void initVideo(Uri uri) {
@@ -247,14 +256,55 @@ public class MainActivity extends AppCompatActivity {
         ArrayList<Entry> valuesZ = new ArrayList<>();
         if (data != null) {
             try {
-                if( csvDump == null || csvDump.size() == 0) {
+                if (csvDump == null || csvDump.size() == 0) {
                     //read csv file data and save it to dump, this dump will used for upcomming process instead of read csv again.
                     InputStream input = getContentResolver().openInputStream(csvUri);
                     CSVReader reader = new CSVReader(new InputStreamReader(input));
                     csvDump = reader.readAll();
+                    dataArray.clear();
+                    dataAdapter.notifyDataSetChanged();
+                    DataAdapter.selectedItems.clear();
+                    ArrayList<String[]> tempData = new ArrayList<>();
+                    for (int i = 0; i < csvDump.size(); i++) {
+                        String[] dumpItem = csvDump.get(i);
+                        if (dumpItem.length >= 15) {
+                            tempData.add(dumpItem);
+                        }
+                    }
+
+                    if (tempData.size() > 1) {
+                        for (int i = 10; i < 15; i++) {
+                            DataItem item = null;
+                            for (int j = 0; j < tempData.size(); j++) {
+                                if (item == null)
+                                    item = new DataItem(-1, "", -1, -1);
+                                if (tempData.get(j)[i].equals("1")) {
+                                    item.setLabelIndex(i-10);
+                                    item.setLabel(getResources().getStringArray(R.array.actions)[i-10]);
+                                    if (item.getStartTime() == -1) {
+                                        item.setStartTime(Float.parseFloat(tempData.get(j)[0]));
+                                    }
+                                }
+                                if (tempData.get(j)[i].equals("0") && item.getLabelIndex() != -1) {
+                                    item.setEndTime(Float.parseFloat(tempData.get(j - 1)[0]));
+                                }
+                                if (item.getStartTime() != -1 && item.getEndTime() != -1) {
+                                    dataArray.add(item);
+                                    item = null;
+                                }
+                            }
+                        }
+                        Collections.sort(dataArray, new Comparator<DataItem>() {
+                            @Override
+                            public int compare(DataItem lhs, DataItem rhs) {
+                                return Float.compare(lhs.getStartTime(),rhs.getStartTime());
+                            }
+                        });
+                        dataAdapter.notifyDataSetChanged();
+                    }
                     reader.close();
                 }
-                if(csvDump.size()<2){
+                if (csvDump.size() < 2) {
                     showToast(R.string.msg_emptyCsv);
                     return;
                 }
@@ -262,7 +312,7 @@ public class MainActivity extends AppCompatActivity {
                 boolean predata = true;
                 float lastpoint = 0;
                 float lastX = 0, lastY = 0, lastZ = 0;
-                for(int i = 1; i< csvDump.size(); i++){
+                for (int i = 1; i < csvDump.size(); i++) {
                     String[] nextLine = csvDump.get(i);
                     if (predata) {
                         //insert empty data for pre 5 sec
@@ -280,6 +330,7 @@ public class MainActivity extends AppCompatActivity {
                     lastX = Float.parseFloat(nextLine[offsetIndex + 1]);
                     lastY = Float.parseFloat(nextLine[offsetIndex + 2]);
                     lastZ = Float.parseFloat(nextLine[offsetIndex + 3]);
+
                 }
                 //insert empty data for last 5 sec
                 valuesX.add(new Entry(lastpoint + 5, lastX));
@@ -309,13 +360,14 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Create graph set with data and type.
+     *
      * @param yValue graph data
-     * @param type data type :X, Y, Z
+     * @param type   data type :X, Y, Z
      * @return colored graph dataset
      */
     private LineDataSet createSet(ArrayList<Entry> yValue, String type) {
         LineDataSet set = new LineDataSet(yValue, type);
-        int colorId = type.equals("X")?R.color.blue:type.equals("Y")?R.color.green:R.color.orange;
+        int colorId = type.equals("X") ? R.color.blue : type.equals("Y") ? R.color.green : R.color.orange;
         set.setAxisDependency(YAxis.AxisDependency.LEFT);
         set.setColor(getResources().getColor(colorId));
         set.setDrawCircles(false);
@@ -343,42 +395,15 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
+        writeThread = new Thread(){
+            @Override
+            public void run() {
+                super.run();
+                saveActionData();
+            }
+        };
     }
 
-    /**
-     * Setup document file storage :: for android 11
-     *
-     * @param savedState
-     */
-    private void setupSimpleStorage(Bundle savedState) {
-        if (savedState != null) {
-            storageHelper.onRestoreInstanceState(savedState);
-        }
-        storageHelper.setOnStorageAccessGranted((requestCode, root) -> {
-            String absolutePath = DocumentFileUtils.getAbsolutePath(root, getBaseContext());
-            Toast.makeText(
-                    getBaseContext(),
-                    getString(R.string.ss_selecting_root_path_success_without_open_folder_picker, absolutePath),
-                    Toast.LENGTH_SHORT
-            ).show();
-            return null;
-        });
-        storageHelper.setOnFileSelected((requestCode, files) -> {
-            String message = "File selected: " + DocumentFileUtils.getFullName(files.get(0));
-            Toast.makeText(getBaseContext(), message, Toast.LENGTH_SHORT).show();
-            return null;
-        });
-        storageHelper.setOnFolderSelected((requestCode, folder) -> {
-            String message = "Folder selected: " + DocumentFileUtils.getAbsolutePath(folder, getBaseContext());
-            Toast.makeText(getBaseContext(), message, Toast.LENGTH_SHORT).show();
-            return null;
-        });
-        storageHelper.setOnFileCreated((requestCode, file) -> {
-            String message = "File created: " + file.getName();
-            Toast.makeText(getBaseContext(), message, Toast.LENGTH_SHORT).show();
-            return null;
-        });
-    }
 
     /********************  Control Functions  *******************/
     /************************************************************/
@@ -414,6 +439,14 @@ public class MainActivity extends AppCompatActivity {
      * @param view start, end, add, delete buttons
      */
     public void pointAction(View view) {
+        if (csvDump == null || csvDump.size() == 0) {
+            showToast(R.string.msg_noCsvFile);
+            return;
+        }
+        if (!videoPrepared) {
+            showToast(R.string.msg_invalidVideoStatus);
+            return;
+        }
         btnPointStart.setSelected(false);
         btnPointEnd.setSelected(false);
         btnPointAdd.setSelected(false);
@@ -421,24 +454,47 @@ public class MainActivity extends AppCompatActivity {
         switch (view.getId()) {
             case R.id.btn_point_start:
                 btnPointStart.setSelected(true);
-                pendingData = new DataItem(getResources().getStringArray(R.array.actions)[actionSelector.getSelectedItemPosition()], (float)player.getCurrentPosition()/1000f,0);
+                pendingData = new DataItem(actionSelector.getSelectedItemPosition(), getResources().getStringArray(R.array.actions)[actionSelector.getSelectedItemPosition()], (float) player.getCurrentPosition() / 1000f, -1);
                 break;
             case R.id.btn_point_end:
                 btnPointEnd.setSelected(true);
-                if(pendingData!=null){
-                    pendingData.setEndTime((float)player.getCurrentPosition()/1000f);
-                    dataArray.add(pendingData);
-                    dataAdapter.notifyDataSetChanged();
-                    dataList.scrollToPosition(dataArray.size() - 1);
-                    pendingData = null;
+                if (pendingData != null) {
+                    pendingData.setEndTime((float) player.getCurrentPosition() / 1000f);
                 }
                 break;
             case R.id.btn_point_add:
-                saveActionData();
+                if (pendingData == null) {
+                    showToast(R.string.msg_noPendingData);
+                    break;
+                }
+                if (pendingData.getEndTime() == -1) {
+                    showToast(R.string.msg_invalidEndTime);
+                    break;
+                }
+                dataArray.add(pendingData);
+                dataAdapter.notifyDataSetChanged();
+                dataList.scrollToPosition(dataArray.size() - 1);
+                pendingData = null;
+                writeThread.start();
                 break;
             case R.id.btn_point_delete:
+                System.out.println(DataAdapter.selectedItems);
+                for (int i = 0; i < dataArray.size(); i++) {
+                    System.out.println(DataAdapter.selectedItems.get(i, false));
+                    if (DataAdapter.selectedItems.get(i, false)) {
+                        dataArray.remove(i);
+                        i=i-1;
+                    }
+                }
+                DataAdapter.selectedItems.clear();
+                dataAdapter.notifyDataSetChanged();
+
+                writeThread.start();
                 break;
         }
+        pendingLabel.setText(pendingData != null ? pendingData.getLabel() : getString(R.string.label));
+        pendingStart.setText(pendingData != null ? String.valueOf(pendingData.getStartTime()) : getString(R.string.start_time));
+        pendingEnd.setText(pendingData != null ? (pendingData.getEndTime() != -1) ? String.valueOf(pendingData.getEndTime()) : "" : getString(R.string.end_time));
     }
 
     /**
@@ -454,6 +510,7 @@ public class MainActivity extends AppCompatActivity {
         dataType = ++dataType % 3;
         initData();
         chart.invalidate();
+        labelType.setText(getResources().getStringArray(R.array.type)[dataType]);
     }
 
     /**
@@ -499,27 +556,23 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Open video/csv file
+     *
      * @param view file open button, status button.(only first created.)
      */
     public void openFile(View view) {
-//        if (Build.VERSION.SDK_INT >= 28) {
-//            storageHelper.openFolderPicker(REQUEST_CODE_PICK_FOLDER);
-//            storageHelper.openFilePicker("*");
-//        } else {
-            Intent intent = new Intent()
-                    .setType("*/*")
-                    .putExtra(Intent.EXTRA_MIME_TYPES, (view.getId() == R.id.btn_open_video || (view.getId() == R.id.file_status)) ? new String[]{"video/mp4"} : new String[]{"text/csv", "text/comma-separated-values", "application/csv"})
-                    .setAction(Intent.ACTION_OPEN_DOCUMENT);
-            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/PVLogger")));
+        Intent intent = new Intent()
+                .setType("*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, (view.getId() == R.id.btn_open_video || (view.getId() == R.id.file_status)) ? new String[]{"video/mp4"} : new String[]{"text/csv", "text/comma-separated-values", "application/csv"})
+                .setAction(Intent.ACTION_OPEN_DOCUMENT);
+        intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/PVLogger")));
 
-            someActivityResultLauncher.launch(intent);
-//        }
-
+        someActivityResultLauncher.launch(intent);
     }
 
     /**
      * action when user click file status button.
      * this button show the status of video file, placed at the center of video view.
+     *
      * @param view button on the center of video view.
      */
     public void fileStatusAction(View view) {
@@ -533,6 +586,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * play/pause video
+     *
      * @param view video view ( not video view, the mask - same size and same place with video view.)
      */
     public void playVideo(View view) {
@@ -546,42 +600,47 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void saveActionData(){
-        if(csvDump == null || csvDump.size() == 0)
-        {
+    public void saveActionData() {
+        if (csvDump == null || csvDump.size() == 0) {
             showToast(R.string.msg_noCsvFile);
             return;
         }
         try {
-            BufferedWriter csvWriter = new BufferedWriter(new OutputStreamWriter(getContentResolver().openOutputStream(csvUri),"UTF-8"));
-            csvWriter.append("time,gFx,gFy,gFz,wx,wy,wz,Bx,By,Bz,Label");
+            BufferedWriter csvWriter = new BufferedWriter(new OutputStreamWriter(getContentResolver().openOutputStream(csvUri), "UTF-8"));
+            csvWriter.append("time,gFx,gFy,gFz,wx,wy,wz,Bx,By,Bz,水を飲む, 餌を食べる, 歩く, 走る, ジャンプする,");
             csvWriter.newLine();
-            for(int i = 1; i<csvDump.size(); i++){
-                String appender = "";
-                for(String data:csvDump.get(i)){
-                    csvWriter.append(appender+data);
-                    appender=",";
+            for (int i = 1; i < csvDump.size(); i++) {
+                for (int j = 0; j < 10; j++) {
+                    csvWriter.append(csvDump.get(i)[j]);
+                    csvWriter.append(",");
                 }
-                csvWriter.append(getLabel(Float.parseFloat(csvDump.get(i)[0])));
+                csvWriter.append(getLabel(Float.parseFloat(csvDump.get(i)[0]),i==(csvDump.size()-1)));
                 csvWriter.newLine();
             }
             csvWriter.close();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public String getLabel(float time){
-        String label = "";
-        for(DataItem item: dataArray){
-            if(time>=item.getStartTime() && time<=item.getEndTime()){
-                label =  item.getLabel();
-                //do not return here because future Dataitem might override label.
+    public String getLabel(float time, boolean last) {
+        String[] labelArray = new String[]{"0", "0", "0", "0", "0"};
+        if(last){
+            //last '0' will be removed in csv file, so input with below format
+            labelArray = new String[]{"=\"0\"", "=\"0\"", "=\"0\"", "=\"0\"", "=\"0\""};
+        }
+        for (DataItem item : dataArray) {
+            if (time >= item.getStartTime() && time <= item.getEndTime()) {
+                labelArray[item.getLabelIndex()] = "1";
+                //do not return here because future DataItem might override label.
             }
         }
-        return label;
+        String result = "";
+        for (String label : labelArray) {
+            result += label + ",";
+        }
+        return result;
     }
-
 
 
     public void showToast(int id) {
@@ -664,18 +723,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        videoUri = null;
     }
 
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        storageHelper.onSaveInstanceState(outState);
-        super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        storageHelper.onRestoreInstanceState(savedInstanceState);
-    }
 }

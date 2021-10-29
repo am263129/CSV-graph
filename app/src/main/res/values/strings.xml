@@ -2,7 +2,6 @@
     <string name="app_name">PetVoice Viewer</string>
     <string name="open_video">動画ファイル名</string>
     <string name="open_csv">CSVファイル名</string>
-
     <string name="start_point">始点</string>
     <string name="end_point">終点</string>
     <string name="add_point">追加</string>
@@ -11,27 +10,35 @@
     <string name="end_time">終点</string>
     <string name="switch_graphic">加速度</string>
     <string name="label">ラベル</string>
-
-
-    <string name="permission_granted">ストレージ権限が付与されます</string>
-    <string name="permission_denied">ストレージ許可が拒否されました</string>
-    <string name="loading_video">ビデオの読み込み</string>
-    <string name="invalid_filename">無効なファイル名</string>
-    <string name="invalid_filetype">無効なファイルタイプ</string>
+    <string name="permission_granted">ストレージ権限が付与されます。</string>
+    <string name="permission_denied">ストレージ許可が拒否されました。</string>
+    <string name="loading_video">ビデオの読み込み。</string>
+    <string name="invalid_filename">無効なファイル名。</string>
+    <string name="invalid_filetype">無効なファイルタイプ。</string>
     <string name="label_acc">加速度</string>
     <string name="label_gyr">ジャイロ</string>
     <string name="label_geo">地磁気</string>
-    <string name="msg_noCsvFile">csvファイルが選択されていません</string>
-    <string name="msg_needOne">少なくとも1つを選択する必要があります</string>
-    <string name="msg_finishApp">アプリを終了してもよろしいですか？</string>
-    <string name="msg_emptyCsv">空のcsvファイルが選択されました</string>
+    <string name="label_pending">保留中のデータ</string>
+    <string name="msg_noCsvFile">csvファイルが選択されていません。</string>
+    <string name="msg_needOne">少なくとも1つを選択する必要があります。</string>
+    <string name="msg_finishApp">アプリを終了してもよろしいですか。</string>
+    <string name="msg_emptyCsv">空のcsvファイルが選択されました。</string>
+    <string name="msg_invalidEndTime">無効な終了時間。</string>
+    <string name="msg_invalidVideoStatus">ビデオが再生されていません。</string>
+    <string name="msg_noPendingData">保留中のデータは空です。</string>
     <string name="ok">わかった</string>
     <string name="cancel">キャンセル</string>
     <string name="finish">終了</string>
     <array name="actions">
-        <item>食べる</item>
+        <item>水を飲む</item>
+        <item>餌を食べる</item>
         <item>歩く</item>
-        <item>飲む</item>
-        <item>歩く</item>
+        <item>走る</item>
+        <item>ジャンプする</item>
+    </array>
+    <array name="type">
+        <item>加速度</item>
+        <item>ジャイロ</item>
+        <item>地磁気</item>
     </array>
 </resources>

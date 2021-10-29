@@ -1,16 +1,19 @@
 package com.example.bluetooth.petvoiceviewer;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-
 public class DataItem {
     private String label;
     float startTime, endTime;
+    int labelIndex;
 
-    public DataItem(String label, float startTime, float endTime){
+    public DataItem(int labelIndex, String label, float startTime, float endTime){
         this.label = label;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.labelIndex = labelIndex;
+    }
+
+    public int getLabelIndex() {
+        return labelIndex;
     }
 
     public String getLabel() {
@@ -29,11 +32,16 @@ public class DataItem {
         this.endTime = endTime;
     }
 
+    public void setStartTime(float startTime) {
+        this.startTime = startTime;
+    }
+
     public void setLabel(String label) {
         this.label = label;
     }
 
-    public void setStartTime(float startTime) {
-        this.startTime = startTime;
+    public void setLabelIndex(int labelIndex) {
+        this.labelIndex = labelIndex;
     }
+
 }

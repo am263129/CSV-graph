@@ -6,12 +6,15 @@
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/bg_active.xml" value="0.37083333333333335" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/bg_border.xml" value="0.37083333333333335" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/bg_border_noradius.xml" value="0.21354166666666666" />
+        <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/bg_border_pending.xml" value="0.2328125" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/bg_danger.xml" value="0.37083333333333335" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/bg_default.xml" value="0.37083333333333335" />
+        <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/ic_video.xml" value="0.2328125" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/sel_close.xml" value="1.828125" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/sel_folder.xml" value="0.37083333333333335" />
+        <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/sel_item.xml" value="0.2328125" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/drawable/sel_point.xml" value="0.37083333333333335" />
-        <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/layout/activity_main.xml" value="0.33" />
+        <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/layout/activity_main.xml" value="0.5" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/layout/activity_splash.xml" value="0.19739583333333333" />
         <entry key="..\:/work/Android/PetVoiceViewer/app/src/main/res/layout/item_data.xml" value="0.33" />
       </map>
