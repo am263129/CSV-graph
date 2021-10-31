@@ -23,6 +23,8 @@
     <string name="msg_needOne">少なくとも1つを選択する必要があります。</string>
     <string name="msg_finishApp">アプリを終了してもよろしいですか。</string>
     <string name="msg_emptyCsv">空のcsvファイルが選択されました。</string>
+    <string name="msg_failedInitCSVData">csvデータの初期化に失敗しました。</string>
+    <string name="msg_invalidCSVData">無効なデータ。 CSVファイルを確認してください。</string>
     <string name="msg_invalidEndTime">無効な終了時間。</string>
     <string name="msg_invalidVideoStatus">ビデオが再生されていません。</string>
     <string name="msg_noPendingData">保留中のデータは空です。</string>

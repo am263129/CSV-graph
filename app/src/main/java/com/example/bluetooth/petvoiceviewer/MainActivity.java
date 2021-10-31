@@ -279,6 +279,9 @@ public class MainActivity extends AppCompatActivity {
                             for (int j = 0; j < tempData.size(); j++) {
                                 if (item == null)
                                     item = new DataItem(-1, "", -1, -1);
+                                if(tempData.get(j).length<10){
+                                    continue;
+                                }
                                 if (tempData.get(j)[i].equals("1")) {
                                     item.setLabelIndex(i-10);
                                     item.setLabel(getResources().getStringArray(R.array.actions)[i-10]);
@@ -315,23 +318,30 @@ public class MainActivity extends AppCompatActivity {
                 float lastX = 0, lastY = 0, lastZ = 0;
                 for (int i = 1; i < csvDump.size(); i++) {
                     String[] nextLine = csvDump.get(i);
-                    if (predata) {
-                        //insert empty data for pre 5 sec
-                        valuesX.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 1])));
-                        valuesY.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 2])));
-                        valuesZ.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 3])));
-                        predata = false;
+                    if(nextLine.length<9){
+                        continue;
                     }
-                    min = Math.min(min, Math.min(Float.parseFloat(nextLine[offsetIndex + 1]), Math.min(Float.parseFloat(nextLine[offsetIndex + 2]), Float.parseFloat(nextLine[offsetIndex + 3]))));
-                    max = Math.max(max, Math.max(Float.parseFloat(nextLine[offsetIndex + 1]), Math.max(Float.parseFloat(nextLine[offsetIndex + 2]), Float.parseFloat(nextLine[offsetIndex + 3]))));
-                    valuesX.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 1])));
-                    valuesY.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 2])));
-                    valuesZ.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 3])));
-                    lastpoint = Float.parseFloat(nextLine[0]) + 5;
-                    lastX = Float.parseFloat(nextLine[offsetIndex + 1]);
-                    lastY = Float.parseFloat(nextLine[offsetIndex + 2]);
-                    lastZ = Float.parseFloat(nextLine[offsetIndex + 3]);
-
+                    try {
+                        if (predata) {
+                            //insert empty data for pre 5 sec
+                            valuesX.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 1])));
+                            valuesY.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 2])));
+                            valuesZ.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 3])));
+                            predata = false;
+                        }
+                        min = Math.min(min, Math.min(Float.parseFloat(nextLine[offsetIndex + 1]), Math.min(Float.parseFloat(nextLine[offsetIndex + 2]), Float.parseFloat(nextLine[offsetIndex + 3]))));
+                        max = Math.max(max, Math.max(Float.parseFloat(nextLine[offsetIndex + 1]), Math.max(Float.parseFloat(nextLine[offsetIndex + 2]), Float.parseFloat(nextLine[offsetIndex + 3]))));
+                        valuesX.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 1])));
+                        valuesY.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 2])));
+                        valuesZ.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 3])));
+                        lastpoint = Float.parseFloat(nextLine[0]) + 5;
+                        lastX = Float.parseFloat(nextLine[offsetIndex + 1]);
+                        lastY = Float.parseFloat(nextLine[offsetIndex + 2]);
+                        lastZ = Float.parseFloat(nextLine[offsetIndex + 3]);
+                    }catch (NumberFormatException E){
+                        showToast(R.string.msg_invalidCSVData);
+                        Log.e(TAG, E.toString());
+                    }
                 }
                 //insert empty data for last 5 sec
                 valuesX.add(new Entry(lastpoint + 5, lastX));
@@ -345,17 +355,18 @@ public class MainActivity extends AppCompatActivity {
                     dataSets.add(createSet(valuesZ, "Z"));
                 LineData newdata = new LineData(dataSets);
                 chart.setData(newdata);
+                YAxis leftAxis = chart.getAxisLeft();
+                leftAxis.setTextColor(Color.WHITE);
+                leftAxis.setAxisMaximum(max);
+                leftAxis.setAxisMinimum(min);
+                leftAxis.setDrawGridLines(true);
+                data.notifyDataChanged();
+                chart.notifyDataSetChanged();
+                chart.setVisibleXRangeMaximum(10);
             } catch (Exception e) {
+                showToast(R.string.msg_failedInitCSVData);
                 e.printStackTrace();
             }
-            YAxis leftAxis = chart.getAxisLeft();
-            leftAxis.setTextColor(Color.WHITE);
-            leftAxis.setAxisMaximum(max);
-            leftAxis.setAxisMinimum(min);
-            leftAxis.setDrawGridLines(true);
-            data.notifyDataChanged();
-            chart.notifyDataSetChanged();
-            chart.setVisibleXRangeMaximum(10);
         }
     }
 
