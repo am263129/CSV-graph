@@ -21,15 +21,15 @@
     <string name="label_pending">保留中のデータ</string>
     <string name="msg_noCsvFile">csvファイルが選択されていません。</string>
     <string name="msg_needOne">少なくとも1つを選択する必要があります。</string>
-    <string name="msg_finishApp">アプリを終了してもよろしいですか。</string>
+    <string name="msg_finishApp">アプリを終了しますか？</string>
     <string name="msg_emptyCsv">空のcsvファイルが選択されました。</string>
     <string name="msg_failedInitCSVData">csvデータの初期化に失敗しました。</string>
     <string name="msg_invalidCSVData">無効なデータ。 CSVファイルを確認してください。</string>
     <string name="msg_invalidEndTime">無効な終了時間。</string>
     <string name="msg_invalidVideoStatus">ビデオが再生されていません。</string>
     <string name="msg_noPendingData">保留中のデータは空です。</string>
-    <string name="ok">わかった</string>
-    <string name="cancel">キャンセル</string>
+    <string name="ok">はい</string>
+    <string name="cancel">いいえ</string>
     <string name="finish">終了</string>
     <array name="actions">
         <item>水を飲む</item>

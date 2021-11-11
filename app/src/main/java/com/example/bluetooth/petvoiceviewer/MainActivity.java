@@ -12,11 +12,13 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -24,11 +26,13 @@ import android.os.Looper;
 import android.os.Message;
 import android.provider.DocumentsContract;
 import android.util.Log;
+import android.view.DragEvent;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.ArrayAdapter;
+import android.webkit.MimeTypeMap;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
@@ -44,6 +48,8 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.github.mikephil.charting.utils.MPPointD;
+import com.github.mikephil.charting.utils.MPPointF;
 import com.opencsv.CSVReader;
 
 import java.io.BufferedWriter;
@@ -51,8 +57,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.StringReader;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -68,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
     private Spinner actionSelector;
     private SurfaceView videoView;
     private SurfaceHolder holder;
-    private ActivityResultLauncher<Intent> someActivityResultLauncher;
+    private ActivityResultLauncher<Intent> mainActivityResultLauncher;
     private ProgressBar loadingProgress;
     private TextView statusLabel, pendingLabel, pendingStart, pendingEnd, labelType;
     private ImageView fileStatus;
@@ -79,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private MediaPlayer player;
     private LineChart chart;
     private SeekBar seekController;
-    private Handler playHandler,writeHandler;
+    private Handler playHandler, writeHandler;
     private Thread writeThread;
     private BufferedWriter csvWriter = null;
     private int videoDuration;
@@ -88,7 +92,8 @@ public class MainActivity extends AppCompatActivity {
     private List<String[]> csvDump;
     private final String TAG = "MainActivity";
     private boolean videoPrepared = false;
-
+    private boolean loadcsv = false;
+    private boolean sync = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,47 +141,68 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
+    public String getMimeType(Uri uri) {
+        String mimeType = null;
+        if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+            ContentResolver cr = getContentResolver();
+            mimeType = cr.getType(uri);
+        } else {
+            String fileExtension = MimeTypeMap.getFileExtensionFromUrl(uri
+                    .toString());
+            mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+                    fileExtension.toLowerCase());
+        }
+        return mimeType;
+    }
+
     /**
      * init file pick launcher and listener.
      */
     public void initLauncher() {
-        someActivityResultLauncher = registerForActivityResult(
+        mainActivityResultLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 new ActivityResultCallback<ActivityResult>() {
                     @Override
                     public void onActivityResult(ActivityResult result) {
+                        Log.e("----debug test ----", "File Pick Result : " + result);
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             // There are no request codes
+                            Log.e("----debug test ----", "Result OK");
                             Intent data = result.getData();
                             if (data != null) {
-                                final int takeFlags = data.getFlags()
-                                        & (Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                                 getContentResolver().takePersistableUriPermission(data.getData(), Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                                if (data.getDataString().length() < 3) {
-                                    showToast(R.string.invalid_filename);
-                                    return;
+                                String fileType = "";
+                                String extension = "";
+                                try {
+                                    extension = MimeTypeMap.getFileExtensionFromUrl(data.getDataString());
+                                    Log.e("----debug test ----", "Result Data : " + data.getDataString() + " path : " + data.getData().getPath() + " type : " + extension + " or : " + getMimeType(data.getData()));
+                                    if (data.getDataString().length() < 3) {
+                                        showToast(R.string.invalid_filename);
+                                        return;
+                                    }
+                                    fileType = data.getData().getPath().substring(data.getData().getPath().length() - 3);
+                                }catch(Exception e){
+                                    e.printStackTrace();
+                                    Log.e("----debug test ----", e.toString());
                                 }
-                                String fileType = data.getDataString().substring(data.getDataString().length() - 3);
-                                Log.e(TAG, fileType);
-                                if (fileType.equals("mp4")) {
+                                Log.e("----debug test ----", fileType);
+                                if (fileType.equals("mp4") || fileType.equals("mov") || fileType.equals("avi") || extension.equals("mp4") || extension.equals("mov") || extension.equals("avi") || getMimeType(data.getData()).equals("video/quicktime") || getMimeType(data.getData()).equals("video/mp4")) {
                                     statusLabel.setVisibility(View.INVISIBLE);
                                     loadingProgress.setVisibility(View.VISIBLE);
                                     videoUri = data.getData();
-                                    if(player.isPlaying()){
-                                        player.stop();
-                                    }
                                     initVideo(data.getData());
-                                } else if (fileType.equals("csv")) {
+                                } else if (fileType.equals("csv") || extension.equals("csv") || getMimeType(data.getData()).equals("text/comma-separated-values") || getMimeType(data.getData()).equals("text/csv")) {
                                     csvUri = data.getData();
                                     csvDump = null;//so that it will read data array.
+                                    loadcsv = false;
                                     initData();
                                 } else {
                                     showToast(R.string.invalid_filetype);
                                     return;
                                 }
-
+                            }
+                            else{
+                                Log.e("----debug test ----", "Result Null");
                             }
                         }
                     }
@@ -188,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
      */
     public void initChart() {
         chart = findViewById(R.id.chart_view);
-        chart.getDescription().setEnabled(false );
+        chart.getDescription().setEnabled(false);
         chart.setTouchEnabled(true);
         chart.setDragEnabled(true);
         chart.setScaleEnabled(true);
@@ -201,12 +227,13 @@ public class MainActivity extends AppCompatActivity {
         Legend l = chart.getLegend();
         l.setForm(Legend.LegendForm.LINE);
         l.setTextColor(Color.WHITE);
-
         XAxis xl = chart.getXAxis();
         xl.setTextColor(Color.BLUE);
+        xl.setAxisMinimum(-5f);
         xl.setDrawGridLines(false);
         xl.setAvoidFirstLastClipping(true);
-        xl.setEnabled(false);
+        xl.setEnabled(true);
+
 
         YAxis leftAxis = chart.getAxisLeft();
         leftAxis.setTextColor(Color.WHITE);
@@ -215,6 +242,47 @@ public class MainActivity extends AppCompatActivity {
         leftAxis.setDrawGridLines(true);
         YAxis rightAxis = chart.getAxisRight();
         rightAxis.setEnabled(false);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            chart.setOnScrollChangeListener(new View.OnScrollChangeListener() {
+                @Override
+                public void onScrollChange(View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY) {
+                    Log.e("Current X", scrollX + "" + " :: " + oldScrollX + "---" + scrollY);
+                }
+            });
+            chart.setOnDragListener(new View.OnDragListener() {
+                @Override
+                public boolean onDrag(View v, DragEvent event) {
+                    Log.e("x", ":" + v.getLeft() + chart.getX());
+
+                    return false;
+                }
+            });
+
+            chart.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                }
+            });
+
+            chart.setOnDragListener(new View.OnDragListener() {
+                @Override
+                public boolean onDrag(View v, DragEvent event) {
+                    Log.e("Drag",v.getLeft()+"");
+                    return false;
+                }
+            });
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                chart.setOnCapturedPointerListener(new View.OnCapturedPointerListener() {
+                    @Override
+                    public boolean onCapturedPointer(View view, MotionEvent event) {
+                        Log.e("Drag",view.getLeft()+"");
+                        return false;
+                    }
+                });
+            }
+        }
     }
 
     /**
@@ -236,6 +304,12 @@ public class MainActivity extends AppCompatActivity {
                     seekController.setMax(videoDuration);
                     videoPrepared = true;
                     fileStatus.setBackgroundResource(R.drawable.ic_play);
+                }
+            });
+            player.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                @Override
+                public void onSeekComplete(MediaPlayer mp) {
+                    playHandler.sendEmptyMessage(0);
                 }
             });
         } catch (IOException e) {
@@ -279,12 +353,12 @@ public class MainActivity extends AppCompatActivity {
                             for (int j = 0; j < tempData.size(); j++) {
                                 if (item == null)
                                     item = new DataItem(-1, "", -1, -1);
-                                if(tempData.get(j).length<10){
+                                if (tempData.get(j).length < 10) {
                                     continue;
                                 }
                                 if (tempData.get(j)[i].equals("1")) {
-                                    item.setLabelIndex(i-10);
-                                    item.setLabel(getResources().getStringArray(R.array.actions)[i-10]);
+                                    item.setLabelIndex(i - 10);
+                                    item.setLabel(getResources().getStringArray(R.array.actions)[i - 10]);
                                     if (item.getStartTime() == -1) {
                                         item.setStartTime(Float.parseFloat(tempData.get(j)[0]));
                                     }
@@ -301,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
                         Collections.sort(dataArray, new Comparator<DataItem>() {
                             @Override
                             public int compare(DataItem lhs, DataItem rhs) {
-                                return Float.compare(lhs.getStartTime(),rhs.getStartTime());
+                                return Float.compare(lhs.getStartTime(), rhs.getStartTime());
                             }
                         });
                         dataAdapter.notifyDataSetChanged();
@@ -318,27 +392,20 @@ public class MainActivity extends AppCompatActivity {
                 float lastX = 0, lastY = 0, lastZ = 0;
                 for (int i = 1; i < csvDump.size(); i++) {
                     String[] nextLine = csvDump.get(i);
-                    if(nextLine.length<9){
+                    if (nextLine.length < 9) {
                         continue;
                     }
                     try {
-                        if (predata) {
-                            //insert empty data for pre 5 sec
-                            valuesX.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 1])));
-                            valuesY.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 2])));
-                            valuesZ.add(new Entry(0, Float.parseFloat(nextLine[offsetIndex + 3])));
-                            predata = false;
-                        }
                         min = Math.min(min, Math.min(Float.parseFloat(nextLine[offsetIndex + 1]), Math.min(Float.parseFloat(nextLine[offsetIndex + 2]), Float.parseFloat(nextLine[offsetIndex + 3]))));
                         max = Math.max(max, Math.max(Float.parseFloat(nextLine[offsetIndex + 1]), Math.max(Float.parseFloat(nextLine[offsetIndex + 2]), Float.parseFloat(nextLine[offsetIndex + 3]))));
-                        valuesX.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 1])));
-                        valuesY.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 2])));
-                        valuesZ.add(new Entry(Float.parseFloat(nextLine[0]) + 5, Float.parseFloat(nextLine[offsetIndex + 3])));
-                        lastpoint = Float.parseFloat(nextLine[0]) + 5;
+                        valuesX.add(new Entry(Float.parseFloat(nextLine[0]), Float.parseFloat(nextLine[offsetIndex + 1])));
+                        valuesY.add(new Entry(Float.parseFloat(nextLine[0]), Float.parseFloat(nextLine[offsetIndex + 2])));
+                        valuesZ.add(new Entry(Float.parseFloat(nextLine[0]), Float.parseFloat(nextLine[offsetIndex + 3])));
+                        lastpoint = Float.parseFloat(nextLine[0]);
                         lastX = Float.parseFloat(nextLine[offsetIndex + 1]);
                         lastY = Float.parseFloat(nextLine[offsetIndex + 2]);
                         lastZ = Float.parseFloat(nextLine[offsetIndex + 3]);
-                    }catch (NumberFormatException E){
+                    } catch (NumberFormatException E) {
                         showToast(R.string.msg_invalidCSVData);
                         Log.e(TAG, E.toString());
                     }
@@ -407,10 +474,9 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
-        writeThread = new Thread(){
+        writeThread = new Thread() {
             @Override
             public void run() {
-                super.run();
                 saveActionData();
             }
         };
@@ -463,16 +529,22 @@ public class MainActivity extends AppCompatActivity {
         btnPointEnd.setSelected(false);
         btnPointAdd.setSelected(false);
         btnPointDelete.setSelected(false);
+        MPPointF centerPointPx = chart.getViewPortHandler().getContentCenter();
+        MPPointD centerPointValue = chart.getValuesByTouchPoint(centerPointPx.x, centerPointPx.y, YAxis.AxisDependency.LEFT);
+        Log.e("Current",centerPointValue.x+"");
         switch (view.getId()) {
             case R.id.btn_point_start:
                 btnPointStart.setSelected(true);
-                pendingData = new DataItem(actionSelector.getSelectedItemPosition(), getResources().getStringArray(R.array.actions)[actionSelector.getSelectedItemPosition()], (float) player.getCurrentPosition() / 1000f, -1);
+                pendingData = new DataItem(actionSelector.getSelectedItemPosition(), getResources().getStringArray(R.array.actions)[actionSelector.getSelectedItemPosition()], (float) centerPointValue.x, -1);
+                syncSeekbar(centerPointValue.x);
                 break;
             case R.id.btn_point_end:
+
                 btnPointEnd.setSelected(true);
                 if (pendingData != null) {
-                    pendingData.setEndTime((float) player.getCurrentPosition() / 1000f);
+                    pendingData.setEndTime((float) centerPointValue.x);
                 }
+                syncSeekbar(centerPointValue.x);
                 break;
             case R.id.btn_point_add:
                 if (pendingData == null) {
@@ -487,20 +559,19 @@ public class MainActivity extends AppCompatActivity {
                 dataAdapter.notifyDataSetChanged();
                 dataList.scrollToPosition(dataArray.size() - 1);
                 pendingData = null;
-                writeThread.start();
                 break;
             case R.id.btn_point_delete:
                 System.out.println(DataAdapter.selectedItems);
-                for (int i = dataArray.size(); i >=0 ; i--) {
-                    System.out.println(DataAdapter.selectedItems.get(i, false));
-                    if (DataAdapter.selectedItems.get(i, false)) {
-                        dataArray.remove(i);
+                if(DataAdapter.selectedItems.size()>0) {
+                    for (int i = dataArray.size() - 1; i >= 0; i--) {
+                        System.out.println(DataAdapter.selectedItems.get(i, false));
+                        if (DataAdapter.selectedItems.get(i, false)) {
+                            dataArray.remove(i);
+                        }
                     }
+                    DataAdapter.selectedItems.clear();
+                    dataAdapter.notifyDataSetChanged();
                 }
-                DataAdapter.selectedItems.clear();
-                dataAdapter.notifyDataSetChanged();
-
-                writeThread.start();
                 break;
         }
         pendingLabel.setText(pendingData != null ? pendingData.getLabel() : getString(R.string.label));
@@ -571,13 +642,17 @@ public class MainActivity extends AppCompatActivity {
      * @param view file open button, status button.(only first created.)
      */
     public void openFile(View view) {
+        if (player != null && player.isPlaying()) {
+            player.stop();
+        }
+        loadcsv = (view.getId() == R.id.btn_open_csv);
         Intent intent = new Intent()
                 .setType("*/*")
-                .putExtra(Intent.EXTRA_MIME_TYPES, (view.getId() == R.id.btn_open_video || (view.getId() == R.id.file_status)) ? new String[]{"video/mp4"} : new String[]{"text/csv", "text/comma-separated-values", "application/csv"})
+                .putExtra(Intent.EXTRA_MIME_TYPES, (view.getId() == R.id.btn_open_video || (view.getId() == R.id.file_status)) ? new String[]{"video/*"} : new String[]{"text/csv", "text/comma-separated-values", "application/csv"})
                 .setAction(Intent.ACTION_OPEN_DOCUMENT);
         intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/PVLogger")));
 
-        someActivityResultLauncher.launch(intent);
+        mainActivityResultLauncher.launch(intent);
     }
 
     /**
@@ -613,7 +688,12 @@ public class MainActivity extends AppCompatActivity {
 
     public void saveActionData() {
         if (csvDump == null || csvDump.size() == 0) {
-            showToast(R.string.msg_noCsvFile);
+            MainActivity.this.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    showToast(R.string.msg_noCsvFile);
+                }
+            });
             return;
         }
         try {
@@ -625,7 +705,7 @@ public class MainActivity extends AppCompatActivity {
                     csvWriter.append(csvDump.get(i)[j]);
                     csvWriter.append(",");
                 }
-                csvWriter.append(getLabel(Float.parseFloat(csvDump.get(i)[0]),i==(csvDump.size()-1)));
+                csvWriter.append(getLabel(Float.parseFloat(csvDump.get(i)[0]), i == (csvDump.size() - 1)));
                 csvWriter.newLine();
             }
             csvWriter.close();
@@ -636,7 +716,7 @@ public class MainActivity extends AppCompatActivity {
 
     public String getLabel(float time, boolean last) {
         String[] labelArray = new String[]{"0", "0", "0", "0", "0"};
-        if(last){
+        if (last) {
             //last '0' will be removed in csv file, so input with below format
             labelArray = new String[]{"=\"0\"", "=\"0\"", "=\"0\"", "=\"0\"", "=\"0\""};
         }
@@ -654,6 +734,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    public void syncSeekbar(double time){
+        //only when paused
+        if(player!=null && !player.isPlaying()) {
+            sync = true;
+            player.seekTo((int) time * 1000);
+            seekController.setProgress((int) time * 1000);
+        }
+    }
+
     public void showToast(int id) {
         Toast.makeText(this, getString(id), Toast.LENGTH_LONG).show();
     }
@@ -667,7 +756,18 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-            chart.moveViewToX((float) progress / 1000f);
+            if (fromUser) {
+//                player.seekTo(seekBar.getProgress());
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    player.seekTo(seekBar.getProgress(), MediaPlayer.SEEK_CLOSEST);
+                else
+                    player.seekTo((int) seekBar.getProgress());
+            }
+            if(sync){
+                sync = false;
+                return;
+            }
+            chart.moveViewToX((float) progress / 1000f - 5);
         }
 
         @Override
@@ -677,8 +777,6 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onStopTrackingTouch(SeekBar seekBar) {
-            player.seekTo(seekBar.getProgress());
-            playHandler.sendEmptyMessage(0);
         }
     }
 
@@ -711,11 +809,11 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
         player = new MediaPlayer();
         videoPrepared = false;
-        if (videoUri == null) {
-            fileStatus.setVisibility(View.VISIBLE);
-            return;
-        }
-        initVideo(videoUri);
+        seekController.setProgress(0);
+        fileStatus.setVisibility(View.VISIBLE);
+        Util.initLogWriter();
+        if (loadcsv && videoUri !=null)
+            initVideo(videoUri);
     }
 
     /**
@@ -723,11 +821,13 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     protected void onStop() {
-        super.onStop();
         if (player.isPlaying())
             player.stop();
         player.release();
         player = null;
+        saveActionData();
+        Util.logWriterClose();
+        super.onStop();
     }
 
 
