@@ -1,5 +1,9 @@
 package com.example.bluetooth.petvoiceviewer;
 
+import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
 
@@ -16,43 +20,48 @@ public class Util {
     private static String logFilePath = null;
     private static String logFileName = null;
 
-    /** Create a file Uri for saving an image or video */
+    public static Uri draftVideo = null;
+    public static Uri draftCsv = null;
+    public static int draftTime = 0;
 
-    public static void initLogWriter(){
+    /**
+     * Create a file Uri for saving an image or video
+     */
+
+    public static void initLogWriter() {
         logWriterClose();
         setLogFile();
         try {
-            logWriter = new BufferedWriter(new FileWriter(logFilePath,true));
-        }catch (Exception e){
+            logWriter = new BufferedWriter(new FileWriter(logFilePath, true));
+        } catch (Exception e) {
             logWriter = null;
             e.printStackTrace();
         }
     }
 
-    public static String getLogFileName(){
-        if( logFileName == null) return "";
+    public static String getLogFileName() {
+        if (logFileName == null) return "";
         return logFileName;
     }
 
-    private static void setLogFile(){
+    private static void setLogFile() {
         logFileName = "log_PetVoiceViewer.txt";
-        logFilePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + File.separator+ "PVLogger"+File.separator + logFileName;
+        logFilePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + File.separator + "PVLogger" + File.separator + logFileName;
     }
 
-    public static void logWriterClose(){
-        if (logWriter != null){
+    public static void logWriterClose() {
+        if (logWriter != null) {
             try {
                 logWriter.close();
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
 
-    public static void  printLog(String text)
-    {
+    public static void printLog(String text) {
         if (logWriter == null) return;
-        try{
+        try {
             Calendar calendar = Calendar.getInstance();
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("EEEE,hh-mm-ss a");
             String time = simpleDateFormat.format(calendar.getTime());
@@ -60,9 +69,9 @@ public class Util {
             logWriter.newLine();
             logWriter.append(text);
             logWriter.newLine();
-            String log = time+" :: "+text;
-            Log.e(TAG,log);
-        }catch(Exception e){
+            String log = time + " :: " + text;
+            Log.e(TAG, log);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -79,4 +88,27 @@ public class Util {
         }
         return new String(hexChars);
     }
+
+    public static void saveDraft(Activity context, Uri videoUri, Uri csvUri, int time) {
+        SharedPreferences sharedPref = context.getPreferences(Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        if(videoUri!=null);
+        editor.putString("VIDEO_URI", String.valueOf(videoUri));
+        if(csvUri!=null);
+        editor.putString("CSV_URI", String.valueOf(csvUri));
+        editor.putInt("PLAY_TIME", time);
+        editor.apply();
+    }
+
+    public static void loadDraft(Activity context) {
+        SharedPreferences sharedPref = context.getPreferences(Context.MODE_PRIVATE);
+        String videoUri = sharedPref.getString("VIDEO_URI", null);
+        if (videoUri != null)
+            draftVideo = Uri.parse(videoUri);
+        String csvUri = sharedPref.getString("CSV_URI", null);
+        if (csvUri != null)
+            draftCsv = Uri.parse(csvUri);
+        draftTime = sharedPref.getInt("PLAY_TIME", 0);
+    }
+
 }

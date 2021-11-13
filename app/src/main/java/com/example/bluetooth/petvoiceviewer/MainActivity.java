@@ -11,10 +11,12 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -25,6 +27,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.util.Log;
 import android.view.DragEvent;
 import android.view.MotionEvent;
@@ -74,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
     private SurfaceHolder holder;
     private ActivityResultLauncher<Intent> mainActivityResultLauncher;
     private ProgressBar loadingProgress;
-    private TextView statusLabel, pendingLabel, pendingStart, pendingEnd, labelType;
+    private TextView statusLabel, pendingLabel, pendingStart, pendingEnd, labelType, nameVidoe, nameCsv;
     private ImageView fileStatus;
     private RecyclerView dataList;
     private DataAdapter dataAdapter;
@@ -91,9 +95,11 @@ public class MainActivity extends AppCompatActivity {
     private Uri csvUri = null, videoUri = null;
     private List<String[]> csvDump;
     private final String TAG = "MainActivity";
+    private final String TEST = "------Test------";
     private boolean videoPrepared = false;
-    private boolean loadcsv = false;
+    private boolean loadcsv = false, loadVideo = false;
     private boolean sync = false;
+    private int seekTime = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,6 +108,21 @@ public class MainActivity extends AppCompatActivity {
         initLauncher();
         initChart();
         initVideoTracker();
+        Log.e(TEST, "Load draft");
+        Util.loadDraft(this);
+        if (Util.draftVideo != null) {
+            Log.e(TEST, "Load video uri :" + Util.draftVideo.toString());
+            videoUri = Util.draftVideo;
+            nameVidoe.setText(getFileName(videoUri));
+        }
+        if (Util.draftCsv != null) {
+            Log.e(TEST, "Load csv uri :" + Util.draftCsv.toString());
+            csvUri = Util.draftCsv;
+            nameCsv.setText(getFileName(csvUri));
+            Log.e(TEST, "init csv data as graph");
+            initData();
+        }
+        seekTime = Util.draftTime;
     }
 
     /********************  init Functions  *******************/
@@ -131,6 +152,8 @@ public class MainActivity extends AppCompatActivity {
         statusLabel = findViewById(R.id.status_label);
         fileStatus = findViewById(R.id.file_status);
         dataList = findViewById(R.id.action_data_list);
+        nameVidoe = findViewById(R.id.label_open_video);
+        nameCsv = findViewById(R.id.label_open_csv);
         dataList.setLayoutManager(new LinearLayoutManager(this));
         dataAdapter = new DataAdapter(dataArray);
         dataList.setAdapter(dataAdapter);
@@ -146,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
         if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
             ContentResolver cr = getContentResolver();
             mimeType = cr.getType(uri);
+
         } else {
             String fileExtension = MimeTypeMap.getFileExtensionFromUrl(uri
                     .toString());
@@ -153,6 +177,31 @@ public class MainActivity extends AppCompatActivity {
                     fileExtension.toLowerCase());
         }
         return mimeType;
+    }
+
+    @SuppressLint("Range")
+    public String getFileName(Uri uri) {
+        String result = "";
+        if (uri.getScheme().equals("content")) {
+            Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    result = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                cursor.close();
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) {
+                result = result.substring(cut + 1);
+            }
+        }
+        return result;
     }
 
     /**
@@ -164,44 +213,41 @@ public class MainActivity extends AppCompatActivity {
                 new ActivityResultCallback<ActivityResult>() {
                     @Override
                     public void onActivityResult(ActivityResult result) {
-                        Log.e("----debug test ----", "File Pick Result : " + result);
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             // There are no request codes
-                            Log.e("----debug test ----", "Result OK");
                             Intent data = result.getData();
                             if (data != null) {
                                 getContentResolver().takePersistableUriPermission(data.getData(), Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                getContentResolver().takePersistableUriPermission(data.getData(), Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                                 String fileType = "";
                                 String extension = "";
                                 try {
                                     extension = MimeTypeMap.getFileExtensionFromUrl(data.getDataString());
-                                    Log.e("----debug test ----", "Result Data : " + data.getDataString() + " path : " + data.getData().getPath() + " type : " + extension + " or : " + getMimeType(data.getData()));
                                     if (data.getDataString().length() < 3) {
                                         showToast(R.string.invalid_filename);
                                         return;
                                     }
                                     fileType = data.getData().getPath().substring(data.getData().getPath().length() - 3);
-                                }catch(Exception e){
+                                } catch (Exception e) {
                                     e.printStackTrace();
-                                    Log.e("----debug test ----", e.toString());
                                 }
-                                Log.e("----debug test ----", fileType);
+                                Log.e("#############", getFileName(data.getData()));
                                 if (fileType.equals("mp4") || fileType.equals("mov") || fileType.equals("avi") || extension.equals("mp4") || extension.equals("mov") || extension.equals("avi") || getMimeType(data.getData()).equals("video/quicktime") || getMimeType(data.getData()).equals("video/mp4")) {
                                     statusLabel.setVisibility(View.INVISIBLE);
                                     loadingProgress.setVisibility(View.VISIBLE);
                                     videoUri = data.getData();
-                                    initVideo(data.getData());
+                                    nameVidoe.setText(getFileName(videoUri));
                                 } else if (fileType.equals("csv") || extension.equals("csv") || getMimeType(data.getData()).equals("text/comma-separated-values") || getMimeType(data.getData()).equals("text/csv")) {
                                     csvUri = data.getData();
                                     csvDump = null;//so that it will read data array.
                                     loadcsv = false;
+                                    nameCsv.setText(getFileName(csvUri));
                                     initData();
                                 } else {
                                     showToast(R.string.invalid_filetype);
                                     return;
                                 }
-                            }
-                            else{
+                            } else {
                                 Log.e("----debug test ----", "Result Null");
                             }
                         }
@@ -268,7 +314,7 @@ public class MainActivity extends AppCompatActivity {
             chart.setOnDragListener(new View.OnDragListener() {
                 @Override
                 public boolean onDrag(View v, DragEvent event) {
-                    Log.e("Drag",v.getLeft()+"");
+                    Log.e("Drag", v.getLeft() + "");
                     return false;
                 }
             });
@@ -277,7 +323,7 @@ public class MainActivity extends AppCompatActivity {
                 chart.setOnCapturedPointerListener(new View.OnCapturedPointerListener() {
                     @Override
                     public boolean onCapturedPointer(View view, MotionEvent event) {
-                        Log.e("Drag",view.getLeft()+"");
+                        Log.e("Drag", view.getLeft() + "");
                         return false;
                     }
                 });
@@ -336,6 +382,7 @@ public class MainActivity extends AppCompatActivity {
                     InputStream input = getContentResolver().openInputStream(csvUri);
                     CSVReader reader = new CSVReader(new InputStreamReader(input));
                     csvDump = reader.readAll();
+                    Log.e(TEST, "dump size :" + csvDump.size());
                     dataArray.clear();
                     dataAdapter.notifyDataSetChanged();
                     DataAdapter.selectedItems.clear();
@@ -531,7 +578,7 @@ public class MainActivity extends AppCompatActivity {
         btnPointDelete.setSelected(false);
         MPPointF centerPointPx = chart.getViewPortHandler().getContentCenter();
         MPPointD centerPointValue = chart.getValuesByTouchPoint(centerPointPx.x, centerPointPx.y, YAxis.AxisDependency.LEFT);
-        Log.e("Current",centerPointValue.x+"");
+        Log.e("Current", centerPointValue.x + "");
         switch (view.getId()) {
             case R.id.btn_point_start:
                 btnPointStart.setSelected(true);
@@ -562,7 +609,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.btn_point_delete:
                 System.out.println(DataAdapter.selectedItems);
-                if(DataAdapter.selectedItems.size()>0) {
+                if (DataAdapter.selectedItems.size() > 0) {
                     for (int i = dataArray.size() - 1; i >= 0; i--) {
                         System.out.println(DataAdapter.selectedItems.get(i, false));
                         if (DataAdapter.selectedItems.get(i, false)) {
@@ -653,6 +700,8 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/PVLogger")));
 
         mainActivityResultLauncher.launch(intent);
+        if (view.getId() == R.id.btn_open_video || (view.getId() == R.id.file_status))
+            seekTime = 0;
     }
 
     /**
@@ -734,9 +783,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public void syncSeekbar(double time){
+    public void syncSeekbar(double time) {
         //only when paused
-        if(player!=null && !player.isPlaying()) {
+        if (player != null && !player.isPlaying()) {
             sync = true;
             player.seekTo((int) time * 1000);
             seekController.setProgress((int) time * 1000);
@@ -763,7 +812,7 @@ public class MainActivity extends AppCompatActivity {
                 else
                     player.seekTo((int) seekBar.getProgress());
             }
-            if(sync){
+            if (sync) {
                 sync = false;
                 return;
             }
@@ -807,13 +856,26 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        Log.e(TEST, "A");
         player = new MediaPlayer();
-        videoPrepared = false;
-        seekController.setProgress(0);
-        fileStatus.setVisibility(View.VISIBLE);
+        Log.e(TEST, "B");
+        Log.e(TEST, "C");
         Util.initLogWriter();
-        if (loadcsv && videoUri !=null)
+        Log.e(TEST, "D");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.e(TEST,"resume");
+        if (videoUri != null) {
+            videoPrepared = false;
+            fileStatus.setVisibility(View.VISIBLE);
+            Log.e(TEST, "E");
             initVideo(videoUri);
+            Log.e(TEST, "F");
+            player.seekTo(seekTime);
+        }
     }
 
     /**
@@ -821,12 +883,31 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     protected void onStop() {
+        int lastPosition = 0;
+        Log.e(TEST, "G");
+        if (player != null) {
+            Log.e(TEST, "H");
+            lastPosition = player.getCurrentPosition();
+        }
+        Log.e(TEST, "I");
         if (player.isPlaying())
             player.stop();
+        Log.e(TEST, "J");
         player.release();
+        Log.e(TEST, "K");
         player = null;
         saveActionData();
+        Log.e(TEST, "L");
         Util.logWriterClose();
+        if (videoUri != null) {
+            Log.e(TEST, "Video Uri : " + videoUri.toString());
+        }
+        if (csvUri != null) {
+            Log.e(TEST, "csvUri : " + csvUri.toString());
+        }
+        Log.e(TEST, "Last position : " + lastPosition);
+        Util.saveDraft(this, videoUri, csvUri, lastPosition);
+        Log.e(TEST, "N");
         super.onStop();
     }
 
