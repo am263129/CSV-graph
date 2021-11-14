@@ -110,12 +110,12 @@ public class MainActivity extends AppCompatActivity {
         initVideoTracker();
         Log.e(TEST, "Load draft");
         Util.loadDraft(this);
-        if (Util.draftVideo != null) {
+        if (Util.draftVideo != null && !Util.draftVideo.equals("null")) {
             Log.e(TEST, "Load video uri :" + Util.draftVideo.toString());
             videoUri = Util.draftVideo;
             nameVidoe.setText(getFileName(videoUri));
         }
-        if (Util.draftCsv != null) {
+        if (Util.draftCsv != null && !Util.draftCsv.equals("null")) {
             Log.e(TEST, "Load csv uri :" + Util.draftCsv.toString());
             csvUri = Util.draftCsv;
             nameCsv.setText(getFileName(csvUri));
@@ -182,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("Range")
     public String getFileName(Uri uri) {
         String result = "";
-        if (uri.getScheme().equals("content")) {
+        if (uri.getScheme()!=null && uri.getScheme().equals("content")) {
             Cursor cursor = getContentResolver().query(uri, null, null, null, null);
             try {
                 if (cursor != null && cursor.moveToFirst()) {
